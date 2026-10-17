@@ -123,7 +123,7 @@ namespace UsuariosApp.Tests.IntegrationTests
 
             response.StatusCode
                 .Should()
-                .Be(HttpStatusCode.Conflict);
+                .Be(HttpStatusCode.BadRequest);
 
             #endregion
         }

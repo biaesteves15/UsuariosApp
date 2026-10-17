@@ -1,5 +1,8 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using FluentValidation;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using UsuariosApp.Application.Dtos;
+using UsuariosApp.Application.Services;
 
 namespace UsuariosApp.Api.Controllers
 {
@@ -7,14 +10,28 @@ namespace UsuariosApp.Api.Controllers
     [ApiController]
     public class UsuariosController : ControllerBase
     {
-        [HttpPost("criar")]
-        public async Task<IActionResult> CriarAsync([FromBody] Dictionary<string, object> request)
+        private readonly UsuarioService _usuarioService;
+
+        public UsuariosController(UsuarioService usuarioService)
         {
-            return StatusCode(502, new
+            _usuarioService = usuarioService;
+        }
+
+        [HttpPost("criar")]
+        public async Task<IActionResult> CriarAsync([FromBody] CriarUsuarioRequest request)
+        {
+            try
             {
-                status = 502,
-                message = "Não implementado."
-            });
+                var response = await _usuarioService.Criar(request);
+
+                //CREATED (201)
+                return StatusCode(201, response);
+            }
+            catch (ValidationException e)
+            {
+                //BAD REQUEST (400)
+                return BadRequest(e.Errors.Select(e => e.ErrorMessage));
+            }
         }
 
         [HttpPost("autenticar")]
