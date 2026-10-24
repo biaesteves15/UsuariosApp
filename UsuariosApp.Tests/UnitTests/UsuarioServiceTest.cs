@@ -1,21 +1,69 @@
 using FluentAssertions;
 using FluentValidation;
+using Microsoft.Extensions.Configuration;
 using UsuariosApp.Application.Dtos;
 using UsuariosApp.Application.Services;
 using UsuariosApp.Domain.Contracts;
 using UsuariosApp.Domain.Entities;
+using UsuariosApp.Infra.Security.Services;
 
 namespace UsuariosApp.Tests.UnitTests;
 
 public class UsuarioServiceTest
 {
+    [Fact(DisplayName = "Deve autenticar usuário encontrado e retornar seus dados e token.")]
+    public async Task DeveAutenticarUsuarioEncontrado()
+    {
+        var usuario = new Usuario
+        {
+            Nome = "Ana Silva",
+            Email = "ana.silva@teste.com",
+            Senha = "Senha@123",
+            Perfil = new Perfil { Nome = "Operador" }
+        };
+        var usuarioRepository = new UsuarioRepositoryFake(usuarioAutenticado: usuario);
+        var service = new UsuarioService(
+            usuarioRepository,
+            new PerfilRepositoryFake(),
+            CriarTokenService());
+
+        var response = await service.Autenticar(new AutenticarUsuarioRequest(usuario.Email, usuario.Senha));
+
+        usuarioRepository.EmailConsultado.Should().Be(usuario.Email);
+        usuarioRepository.SenhaConsultada.Should().Be(usuario.Senha);
+        response.id.Should().Be(usuario.Id);
+        response.nome.Should().Be(usuario.Nome);
+        response.email.Should().Be(usuario.Email);
+        response.perfil.Should().Be("Operador");
+        response.token.Should().NotBeNullOrWhiteSpace();
+        response.expiraEm.Should().BeAfter(DateTime.UtcNow);
+    }
+
+    [Fact(DisplayName = "Deve rejeitar autenticação quando o usuário não existe.")]
+    public async Task DeveRejeitarAutenticacaoDeUsuarioInexistente()
+    {
+        var usuarioRepository = new UsuarioRepositoryFake();
+        var service = new UsuarioService(
+            usuarioRepository,
+            new PerfilRepositoryFake(),
+            CriarTokenService());
+
+        var act = () => service.Autenticar(new AutenticarUsuarioRequest("ausente@teste.com", "Senha@123"));
+
+        await act.Should()
+            .ThrowAsync<ApplicationException>()
+            .WithMessage("Acesso negado. Usuário inválido.");
+        usuarioRepository.EmailConsultado.Should().Be("ausente@teste.com");
+        usuarioRepository.SenhaConsultada.Should().Be("Senha@123");
+    }
+
     [Fact(DisplayName = "Deve cadastrar usuário e associá-lo ao perfil existente.")]
     public async Task DeveCadastrarUsuarioComPerfilExistente()
     {
         var perfil = new Perfil { Nome = "Operador" };
         var usuarioRepository = new UsuarioRepositoryFake();
         var perfilRepository = new PerfilRepositoryFake(perfil);
-        var service = new UsuarioService(usuarioRepository, perfilRepository);
+        var service = new UsuarioService(usuarioRepository, perfilRepository, CriarTokenService());
 
         var response = await service.Criar(CriarRequest());
 
@@ -36,7 +84,7 @@ public class UsuarioServiceTest
     {
         var usuarioRepository = new UsuarioRepositoryFake();
         var perfilRepository = new PerfilRepositoryFake();
-        var service = new UsuarioService(usuarioRepository, perfilRepository);
+        var service = new UsuarioService(usuarioRepository, perfilRepository, CriarTokenService());
 
         await service.Criar(CriarRequest());
 
@@ -53,7 +101,7 @@ public class UsuarioServiceTest
     {
         var usuarioRepository = new UsuarioRepositoryFake();
         var perfilRepository = new PerfilRepositoryFake();
-        var service = new UsuarioService(usuarioRepository, perfilRepository);
+        var service = new UsuarioService(usuarioRepository, perfilRepository, CriarTokenService());
         var request = new CriarUsuarioRequest("", "email-invalido", "fraca");
 
         var act = () => service.Criar(request);
@@ -68,10 +116,23 @@ public class UsuarioServiceTest
     private static CriarUsuarioRequest CriarRequest() =>
         new("Ana Silva", "ana.silva@teste.com", "Senha@123");
 
-    private sealed class UsuarioRepositoryFake : IUsuarioRepository
+    private static TokenService CriarTokenService() =>
+        new(new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Jwt:Issuer"] = "UsuariosApp.Tests",
+                ["Jwt:Audience"] = "UsuariosApp.Tests.Client",
+                ["Jwt:ExpirationInMinutes"] = "30",
+                ["Jwt:SecretKey"] = "ChaveDeTesteComTamanhoSuficiente123456"
+            })
+            .Build());
+
+    private sealed class UsuarioRepositoryFake(Usuario? usuarioAutenticado = null) : IUsuarioRepository
     {
         public Usuario? UsuarioAdicionado { get; private set; }
         public int AdicionarChamadas { get; private set; }
+        public string? EmailConsultado { get; private set; }
+        public string? SenhaConsultada { get; private set; }
 
         public Task Adicionar(Usuario usuario)
         {
@@ -82,7 +143,12 @@ public class UsuarioServiceTest
 
         public Task<bool> EmailExistente(string email) => Task.FromResult(false);
 
-        public Task<Usuario?> Obter(string email, string senha) => Task.FromResult<Usuario?>(null);
+        public Task<Usuario?> Obter(string email, string senha)
+        {
+            EmailConsultado = email;
+            SenhaConsultada = senha;
+            return Task.FromResult(usuarioAutenticado);
+        }
     }
 
     private sealed class PerfilRepositoryFake(Perfil? perfil = null) : IPerfilRepository

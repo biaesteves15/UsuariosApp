@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\UsuariosApp.Domain\UsuariosApp.Domain.csproj" />
+    <ProjectReference Include="..\UsuariosApp.Infra.Security\UsuariosApp.Infra.Security.csproj" />
   </ItemGroup>
 
 </Project>

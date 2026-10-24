@@ -35,13 +35,20 @@ namespace UsuariosApp.Api.Controllers
         }
 
         [HttpPost("autenticar")]
-        public async Task<IActionResult> AutenticarAsync([FromBody] Dictionary<string, object> request)
+        public async Task<IActionResult> AutenticarAsync([FromBody] AutenticarUsuarioRequest request)
         {
-            return StatusCode(502, new
+            try
             {
-                status = 502,
-                message = "Não implementado."
-            });
+                var response = await _usuarioService.Autenticar(request);
+
+                //OK (200)
+                return StatusCode(200, response);
+            }
+            catch (ApplicationException e)
+            {
+                //UNAUTHORIZED (401)
+                return Unauthorized(new { e.Message });
+            }
         }
     }
 }
