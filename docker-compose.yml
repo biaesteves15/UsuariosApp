@@ -1,0 +1,46 @@
+services:
+
+  # Serviço responsável pela execução da API
+  usuariosapp-api:
+
+    # Configura a construção da imagem
+    build:
+
+      # Utiliza a raiz da solução como contexto
+      context: .
+
+      # Define o arquivo de construção
+      dockerfile: Dockerfile
+
+    # Define o nome e a versão da imagem
+    image: usuariosapp-api:1.0
+
+    # Define o nome do container
+    container_name: usuariosapp-api
+
+    # Reinicia o container, exceto quando parado manualmente
+    restart: unless-stopped
+
+    # Mapeia a porta da máquina para a porta do container
+    ports:
+      - "8080:8080"
+
+    # Define as variáveis de ambiente da aplicação
+    environment:
+
+      # Ambiente de desenvolvimento para testes locais com Swagger
+      ASPNETCORE_ENVIRONMENT: Development
+
+      # Porta HTTP utilizada pela aplicação dentro do container
+      ASPNETCORE_HTTP_PORTS: "8080"
+
+    # Conecta a API à rede do projeto
+    networks:
+      - usuariosapp-network
+
+# Redes utilizadas pelos serviços
+networks:
+
+  # Rede compartilhada do projeto
+  usuariosapp-network:
+    driver: bridge

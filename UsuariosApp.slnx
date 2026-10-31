@@ -1,4 +1,9 @@
 <Solution>
+  <Folder Name="/Itens de Solução/">
+    <File Path=".dockerignore" />
+    <File Path="docker-compose.yml" />
+    <File Path="Dockerfile" />
+  </Folder>
   <Project Path="UsuariosApp.Api/UsuariosApp.Api.csproj" />
   <Project Path="UsuariosApp.Application/UsuariosApp.Application.csproj" />
   <Project Path="UsuariosApp.Domain/UsuariosApp.Domain.csproj" />
